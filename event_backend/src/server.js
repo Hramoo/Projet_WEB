@@ -10,7 +10,6 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// routes test
 app.get("/", (req, res) => {
   res.send("Backend OK");
 });
@@ -19,42 +18,46 @@ app.get("/api/health", (req, res) => {
   res.json({ ok: true });
 });
 
-// auth
 app.post("/api/signup", signup);
 app.post("/api/login", login);
 app.post("/api/validate", requireAuth);
 
-// =======================
-// EVENTS
-// =======================
 
 // GET events + is_reserved pour le user connecté
 app.get("/api/events", requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const result = await pool.query(
-      `SELECT
-         e.id, e.title, e.event_date, e.capacity, e.places_left, e.owner_id, e.created_at,
-         CASE WHEN ue.user_id IS NULL THEN false ELSE true END AS is_reserved
-       FROM events e
-       LEFT JOIN user_events ue
-         ON ue.event_id = e.id AND ue.user_id = $1
-       ORDER BY e.event_date ASC`,
-      [userId]
-    );
+    const sql = `
+      SELECT
+        e.id,
+        e.title,
+        e.event_date,
+        e.capacity,
+        e.places_left,
+        e.owner_id,
+        e.image_url,
+        e.created_at,
+        (ue.user_id IS NOT NULL) AS is_reserved
+      FROM events e
+      LEFT JOIN user_events ue
+        ON ue.event_id = e.id
+       AND ue.user_id = ${userId}
+      ORDER BY e.event_date ASC
+    `;
 
-    res.json(result.rows);
+    const { rows } = await pool.query(sql);
+    res.json(rows);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
 
-// CREATE event (owner_id = user connecté, places_left = capacity)
+// creation event
 app.post("/api/events", requireAuth, async (req, res) => {
   try {
-    const { title, date, capacity } = req.body;
+    const { title, date, capacity, image_url } = req.body;
 
     if (!title || !date || capacity === undefined) {
       return res.status(400).json({ error: "Champs manquants" });
@@ -67,24 +70,46 @@ app.post("/api/events", requireAuth, async (req, res) => {
 
     const ownerId = req.user.id;
 
-    const result = await pool.query(
-      `INSERT INTO events (title, event_date, capacity, places_left, owner_id)
-       VALUES ($1, $2, $3, $3, $4)
-       RETURNING id, title, event_date, capacity, places_left, owner_id, created_at`,
-      [title, date, cap, ownerId]
-    );
+    const sql = `
+      INSERT INTO events (
+        title,
+        event_date,
+        capacity,
+        places_left,
+        owner_id,
+        image_url
+      )
+      VALUES (
+        '${title}',
+        '${date}',
+        ${cap},
+        ${cap},
+        ${ownerId},
+        ${image_url ? `'${image_url}'` : "NULL"}
+      )
+      RETURNING
+        id,
+        title,
+        event_date,
+        capacity,
+        places_left,
+        owner_id,
+        image_url,
+        created_at
+    `;
 
-    // on ajoute is_reserved = false pour être cohérent avec le GET
-    res.json({ ...result.rows[0], is_reserved: false });
+    const { rows } = await pool.query(sql);
+    res.json({ ...rows[0], is_reserved: false });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
 
-// RESERVE (1 fois max par user) + décrémente places_left (transaction)
+// 
 app.post("/api/events/:id/reserve", requireAuth, async (req, res) => {
   const client = await pool.connect();
+
   try {
     const eventId = Number(req.params.id);
     const userId = req.user.id;
@@ -95,27 +120,42 @@ app.post("/api/events/:id/reserve", requireAuth, async (req, res) => {
 
     await client.query("BEGIN");
 
-    // lock l'event
-    const ev = await client.query(
-      "SELECT * FROM events WHERE id = $1 FOR UPDATE",
-      [eventId]
-    );
+    // lock event
+    const lockSql = `
+      SELECT *
+      FROM events
+      WHERE id = ${eventId}
+      FOR UPDATE
+    `;
+    const ev = await client.query(lockSql);
 
     if (ev.rows.length === 0) {
       await client.query("ROLLBACK");
       return res.status(404).json({ error: "Event introuvable" });
     }
 
-    if (ev.rows[0].places_left <= 0) {
+    const event = ev.rows[0];
+
+    if (event.owner_id === userId) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({
+        error: "Tu ne peux pas réserver ton propre event",
+      });
+    }
+
+    if (event.places_left <= 0) {
       await client.query("ROLLBACK");
       return res.status(400).json({ error: "Plus de places" });
     }
 
     // déjà réservé ?
-    const existing = await client.query(
-      "SELECT 1 FROM user_events WHERE user_id = $1 AND event_id = $2",
-      [userId, eventId]
-    );
+    const checkSql = `
+      SELECT 1
+      FROM user_events
+      WHERE user_id = ${userId}
+        AND event_id = ${eventId}
+    `;
+    const existing = await client.query(checkSql);
 
     if (existing.rows.length > 0) {
       await client.query("ROLLBACK");
@@ -123,24 +163,98 @@ app.post("/api/events/:id/reserve", requireAuth, async (req, res) => {
     }
 
     // insert relation
-    await client.query(
-      "INSERT INTO user_events (user_id, event_id) VALUES ($1, $2)",
-      [userId, eventId]
-    );
+    const insertSql = `
+      INSERT INTO user_events (user_id, event_id)
+      VALUES (${userId}, ${eventId})
+    `;
+    await client.query(insertSql);
 
-    // décrémente stock
-    const updated = await client.query(
-      `UPDATE events
-       SET places_left = places_left - 1
-       WHERE id = $1
-       RETURNING id, title, event_date, capacity, places_left, owner_id, created_at`,
-      [eventId]
-    );
+    // décrémente places
+    const updateSql = `
+      UPDATE events
+      SET places_left = places_left - 1
+      WHERE id = ${eventId}
+      RETURNING
+        id,
+        title,
+        event_date,
+        capacity,
+        places_left,
+        owner_id,
+        image_url,
+        created_at
+    `;
+    const updated = await client.query(updateSql);
 
     await client.query("COMMIT");
-
-    // renvoyer aussi is_reserved=true pour le front
     res.json({ ...updated.rows[0], is_reserved: true });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  } finally {
+    client.release();
+  }
+});
+
+// UNRESERVE
+app.post("/api/events/:id/unreserve", requireAuth, async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const eventId = Number(req.params.id);
+    const userId = req.user.id;
+
+    if (!Number.isInteger(eventId)) {
+      return res.status(400).json({ error: "ID invalide" });
+    }
+
+    await client.query("BEGIN");
+
+    const lockSql = `
+      SELECT *
+      FROM events
+      WHERE id = ${eventId}
+      FOR UPDATE
+    `;
+    const ev = await client.query(lockSql);
+
+    if (ev.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Event introuvable" });
+    }
+
+    const deleteSql = `
+      DELETE FROM user_events
+      WHERE user_id = ${userId}
+        AND event_id = ${eventId}
+      RETURNING *
+    `;
+    const del = await client.query(deleteSql);
+
+    if (del.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Pas de réservation" });
+    }
+
+    const updateSql = `
+      UPDATE events
+      SET places_left = LEAST(capacity, places_left + 1)
+      WHERE id = ${eventId}
+      RETURNING
+        id,
+        title,
+        event_date,
+        capacity,
+        places_left,
+        owner_id,
+        image_url,
+        created_at
+    `;
+    const updated = await client.query(updateSql);
+
+    await client.query("COMMIT");
+    res.json({ ...updated.rows[0], is_reserved: false });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error(err);
