@@ -25,19 +25,23 @@ export default function LoginPage() {
         body: JSON.stringify({ username, password }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        setMessage(data.error || "Erreur");
+        setMessage(data?.error || "Erreur");
         return;
       }
 
-      if (mode === "login") {
+      // ✅ Login OU Signup réussi → on stocke le token et on va à la landing
+      if (data?.token) {
         localStorage.setItem("token", data.token);
-        setMessage("Connecté");
-        navigate("/"); // ✅ redirection landing
-      } else {
-        setMessage("Compte créé, tu peux te connecter");
+        navigate("/");
+        return;
+      }
+
+      // Fallback si jamais signup ne renvoie pas de token
+      if (mode === "signup") {
+        setMessage("Compte créé. Connexion en cours...");
         setMode("login");
       }
     } catch {
@@ -76,7 +80,7 @@ export default function LoginPage() {
           <h1 className="title">
             {mode === "login" ? "Connexion" : "Créer un compte"}
           </h1>
-          <p className="subtitle">{mode === "login" ? "" : ""}</p>
+          <p className="subtitle" />
         </div>
 
         <form className="form" onSubmit={handleSubmit}>
@@ -85,6 +89,7 @@ export default function LoginPage() {
             <input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+              required
             />
           </label>
 
@@ -94,6 +99,7 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              required
             />
           </label>
 

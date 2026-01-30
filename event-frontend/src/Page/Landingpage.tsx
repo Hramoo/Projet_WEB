@@ -5,7 +5,6 @@ import Topbar from "./components/Topbar";
 import EventCard, { type EventItem } from "./components/EventCard";
 import AddEventModal from "./components/AddEventModal";
 import EditEventModal from "./components/EditEventModal";
-import SettingsModal, { type UserSettings } from "./components/SettingsModal";
 
 import "./style/Landingpage.css";
 
@@ -21,35 +20,14 @@ async function safeJson(res: Response) {
   }
 }
 
-function applySettings(s: UserSettings) {
-  const root = document.documentElement;
-
-  root.style.setProperty("--primary", s.primary_color);
-
-  if (s.theme === "dark") {
-    root.style.setProperty("--bg", "#0b1220");
-    root.style.setProperty("--card", "#0f172a");
-    root.style.setProperty("--text", "#e5e7eb");
-    root.style.setProperty("--muted", "#94a3b8");
-    root.style.setProperty("--soft", "#1f2937");
-  } else {
-    root.style.setProperty("--bg", "#f4f6fb");
-    root.style.setProperty("--card", "#ffffff");
-    root.style.setProperty("--text", "#111827");
-    root.style.setProperty("--muted", "#374151");
-    root.style.setProperty("--soft", "#e5e7eb");
-  }
-
-  root.dataset.compact = String(s.compact);
-  root.dataset.showImages = String(s.show_images);
-}
-
 export default function LandingPage() {
   const navigate = useNavigate();
 
   const [events, setEvents] = useState<EventItem[]>([]);
   const [message, setMessage] = useState("");
+
   const [userId, setUserId] = useState<number | null>(null);
+  const [userRole, setUserRole] = useState<"user" | "admin" | null>(null);
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [addForm, setAddForm] = useState({
@@ -66,15 +44,6 @@ export default function LandingPage() {
     date: "",
     capacity: "",
     imageUrl: "",
-  });
-
-  // ✅ Settings
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [settings, setSettings] = useState<UserSettings>({
-    theme: "light",
-    primary_color: "#111827",
-    compact: false,
-    show_images: true,
   });
 
   const token = useMemo(() => localStorage.getItem("token"), []);
@@ -113,7 +82,6 @@ export default function LandingPage() {
   );
 
   const loadMe = useCallback(async () => {
-    // ✅ IMPORTANT: ton backend expose GET /api/validate
     const res = await authFetch("/api/validate");
     if (!res) return;
 
@@ -121,7 +89,10 @@ export default function LandingPage() {
     if (!res.ok) return;
 
     const id = data?.user?.id;
+    const role = data?.user?.role;
+
     setUserId(id != null ? Number(id) : null);
+    setUserRole(role === "admin" ? "admin" : "user");
   }, [authFetch]);
 
   const loadEvents = useCallback(async () => {
@@ -134,27 +105,6 @@ export default function LandingPage() {
     setEvents(Array.isArray(data) ? (data as EventItem[]) : []);
   }, [authFetch]);
 
-  const loadSettings = useCallback(async () => {
-    const res = await authFetch("/api/me/settings");
-    if (!res) return;
-
-    const data = await safeJson(res);
-    if (!res.ok) return;
-
-    const s = data?.settings;
-    if (s) {
-      const next: UserSettings = {
-        theme: s.theme === "dark" ? "dark" : "light",
-        primary_color:
-          typeof s.primary_color === "string" ? s.primary_color : "#111827",
-        compact: !!s.compact,
-        show_images: s.show_images !== false,
-      };
-      setSettings(next);
-      applySettings(next);
-    }
-  }, [authFetch]);
-
   useEffect(() => {
     if (!token) {
       navigate("/login");
@@ -162,8 +112,7 @@ export default function LandingPage() {
     }
     loadMe();
     loadEvents();
-    loadSettings();
-  }, [loadEvents, loadMe, loadSettings, navigate, token]);
+  }, [loadEvents, loadMe, navigate, token]);
 
   const updateEventInList = useCallback((updated: EventItem) => {
     setEvents((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
@@ -299,46 +248,14 @@ export default function LandingPage() {
     [authFetch, removeEventFromList]
   );
 
-  const saveSettings = useCallback(
-    async (next: UserSettings) => {
-      setSettings(next);
-      applySettings(next);
-
-      const res = await authFetch("/api/me/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(next),
-      });
-
-      if (!res) return;
-      const data = await safeJson(res);
-      if (!res.ok) {
-        setMessage(data?.error || "Erreur settings");
-        return;
-      }
-
-      const s = data?.settings;
-      if (s) {
-        const normalized: UserSettings = {
-          theme: s.theme === "dark" ? "dark" : "light",
-          primary_color:
-            typeof s.primary_color === "string" ? s.primary_color : "#111827",
-          compact: !!s.compact,
-          show_images: s.show_images !== false,
-        };
-        setSettings(normalized);
-        applySettings(normalized);
-      }
-    },
-    [authFetch]
-  );
-
   return (
     <div className="page">
       <Topbar
         onAdd={() => setIsAddOpen(true)}
         onLogout={handleLogout}
-        onSettings={() => setIsSettingsOpen(true)}
+        // ✅ IMPORTANT: ne pas afficher Admin tant qu'on n'a pas chargé le rôle
+        isAdmin={userRole === "admin"}
+        onAdmin={() => navigate("/admin")}
       />
 
       {message && <p className="message">{message}</p>}
@@ -380,14 +297,6 @@ export default function LandingPage() {
             setEditTarget(null);
           }}
           onSubmit={handleEditEvent}
-        />
-      )}
-
-      {isSettingsOpen && (
-        <SettingsModal
-          value={settings}
-          onClose={() => setIsSettingsOpen(false)}
-          onChange={saveSettings}
         />
       )}
     </div>

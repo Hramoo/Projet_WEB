@@ -1,20 +1,24 @@
 export default function Topbar({
   onAdd,
   onLogout,
-  onSettings,
+  isAdmin,
+  onAdmin,
 }: {
   onAdd: () => void;
   onLogout: () => void;
-  onSettings: () => void;
+  isAdmin: boolean;
+  onAdmin: () => void;
 }) {
   return (
     <header className="topbar">
       <h1 className="brand">EventSquare</h1>
 
       <div className="actions">
-        <button className="btn soft" onClick={onSettings}>
-          Personnaliser
-        </button>
+        {isAdmin && (
+          <button className="btn soft" onClick={onAdmin}>
+            Admin
+          </button>
+        )}
 
         <button className="btn soft" onClick={onAdd}>
           + Ajouter

@@ -4,10 +4,18 @@ const jwt = require("jsonwebtoken");
 
 const JWT_SECRET = "supersecrekey";
 
+function signToken(user) {
+  return jwt.sign(
+    { id: user.id, username: user.username, role: user.role },
+    JWT_SECRET,
+    { expiresIn: "1h" }
+  );
+}
+
 // SIGNUP
 exports.signup = async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password } = req.body || {};
 
     if (!username || !password) {
       return res.status(400).json({ error: "Champs manquants" });
@@ -24,12 +32,16 @@ exports.signup = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await pool.query(
-      "INSERT INTO public.users (username, password) VALUES ($1, $2)",
+    // ✅ role par défaut
+    const created = await pool.query(
+      "INSERT INTO public.users (username, password, role) VALUES ($1, $2, 'user') RETURNING id, username, role",
       [username, hashedPassword]
     );
 
-    return res.json({ message: "Compte cree" });
+    const user = created.rows[0];
+    const token = signToken(user);
+
+    return res.json({ token, user });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Server error" });
@@ -39,10 +51,10 @@ exports.signup = async (req, res) => {
 // LOGIN
 exports.login = async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password } = req.body || {};
 
     const result = await pool.query(
-      "SELECT * FROM public.users WHERE username = $1",
+      "SELECT id, username, password, role FROM public.users WHERE username = $1",
       [username]
     );
 
@@ -58,13 +70,12 @@ exports.login = async (req, res) => {
       return res.status(401).json({ error: "flop bg" });
     }
 
-    const token = jwt.sign(
-      { id: user.id, username: user.username },
-      JWT_SECRET,
-      { expiresIn: "1h" }
-    );
+    const token = signToken(user);
 
-    return res.json({ token });
+    return res.json({
+      token,
+      user: { id: user.id, username: user.username, role: user.role },
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Server error" });
