@@ -58,10 +58,10 @@ exports.reserveEvent = async (req, res) => {
 
     const event = evRes.rows[0];
 
-    if (event.owner_id === userId) {
-      await client.query("ROLLBACK");
-      return res.status(400).json({ error: "Tu ne peux pas réserver ton propre event" });
-    }
+    // if (event.owner_id === userId) {
+    //   await client.query("ROLLBACK");
+    //   return res.status(400).json({ error: "Tu ne peux pas réserver ton propre event" });
+    // }
 
     if (event.places_left <= 0) {
       await client.query("ROLLBACK");
