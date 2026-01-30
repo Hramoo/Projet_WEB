@@ -31,12 +31,14 @@ export default function EventCard({
   onUnreserve: () => void;
 }) {
   const isFull = ev.places_left === 0;
-
-  // priorité à l’image stockée en DB (BYTEA), fallback sur l’URL
   const img = ev.image_data_url || ev.image_url;
 
   return (
     <div className="card">
+      {/* Badge owner */}
+      {isOwner && <span className="owner-badge">Ton événement</span>}
+
+      {/* Image */}
       {img && (
         <div
           className="card-image"
@@ -44,6 +46,7 @@ export default function EventCard({
         />
       )}
 
+      {/* Infos */}
       <h2>{ev.title}</h2>
       <p>Créé par : {ev.owner_username}</p>
       <p>Date : {formatDate(ev.event_date)}</p>
@@ -54,8 +57,9 @@ export default function EventCard({
 
       <div className="spacer" />
 
-      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-        {/* Actions OWNER */}
+      {/* Actions */}
+      <div className="card-actions">
+        {/* OWNER actions */}
         {isOwner && (
           <>
             <button
@@ -72,12 +76,11 @@ export default function EventCard({
             >
               🗑️
             </button>
-            <span className="badge">Ton événement</span>
           </>
         )}
 
-        {/* Actions NON-OWNER */}
-        {!isOwner &&
+        {/* NON-OWNER actions */}
+        {!false &&
           (ev.is_reserved ? (
             <button className="btn soft" onClick={onUnreserve}>
               Se désengager
@@ -88,7 +91,7 @@ export default function EventCard({
               disabled={isFull}
               onClick={onReserve}
             >
-              {isFull ? "Complet" : "Réserver"}
+              {isFull ? "Complet" : "S’inscrire"}
             </button>
           ))}
       </div>

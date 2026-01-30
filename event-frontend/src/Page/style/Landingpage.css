@@ -4,6 +4,8 @@
   background: #f4f6fb;
 }
 
+/* Topbar */
+
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -22,13 +24,18 @@
   gap: 10px;
 }
 
+/* Grid */
+
 .grid {
   display: grid;
   gap: 16px;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 }
 
+/* Card */
+
 .card {
+  position: relative;
   background: white;
   border-radius: 16px;
   padding: 16px;
@@ -37,7 +44,33 @@
   flex-direction: column;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
   border: 1px solid rgba(17, 24, 39, 0.06);
+
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  will-change: transform;
 }
+
+.card:hover {
+  transform: scale(1.04) translateY(-4px);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
+  z-index: 2;
+}
+
+/* Owner badge */
+
+.owner-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 3;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #111827;
+  color: white;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* Image */
 
 .card-image {
   height: 120px;
@@ -46,6 +79,8 @@
   background-position: center;
   margin-bottom: 10px;
 }
+
+/* Text */
 
 .card h2 {
   margin: 0 0 8px;
@@ -57,25 +92,44 @@
   color: #374151;
 }
 
+/* Badge */
+
 .badge {
   margin-top: 8px;
   width: fit-content;
-  padding: 6px 10px;
+  padding: 4px 8px;
   border-radius: 999px;
   background: #f1f5f9;
   font-weight: 800;
+  font-size: 12px;
 }
+
+/* Spacer */
 
 .spacer {
   flex: 1;
 }
 
+/* Actions */
+
+.card-actions {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Buttons */
+
 .btn {
-  padding: 10px;
+  padding: 8px;
   border-radius: 10px;
   border: none;
   font-weight: 700;
   cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .btn.primary {
@@ -93,6 +147,25 @@
   color: #6b7280;
   cursor: not-allowed;
 }
+
+/* Icon buttons */
+
+.btn.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  line-height: 1;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial,
+    "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji";
+}
+
+.btn.icon.danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Message */
 
 .message {
   color: #dc2626;

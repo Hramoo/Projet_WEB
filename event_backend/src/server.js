@@ -17,8 +17,12 @@ app.get("/api/health", (req, res) => res.json({ ok: true }));
 app.post("/api/signup", signup);
 app.post("/api/login", login);
 
-// Optionnel : valider le token
+// ✅ Validate token (GET + POST pour éviter les mismatches front)
 app.get("/api/validate", requireAuth, (req, res) => {
+  res.json({ ok: true, user: req.user });
+});
+
+app.post("/api/validate", requireAuth, (req, res) => {
   res.json({ ok: true, user: req.user });
 });
 
