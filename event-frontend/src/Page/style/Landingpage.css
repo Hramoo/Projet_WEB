@@ -1,7 +1,17 @@
+:root {
+  --bg: #f4f6fb;
+  --card: #ffffff;
+  --text: #111827;
+  --muted: #374151;
+  --primary: #111827;
+  --soft: #e5e7eb;
+}
+
 .page {
   min-height: 100vh;
   padding: 24px;
-  background: #f4f6fb;
+  background: var(--bg);
+  color: var(--text);
 }
 
 /* Topbar */
@@ -16,7 +26,7 @@
 .brand {
   font-size: 22px;
   font-weight: 900;
-  color: #111827;
+  color: var(--text);
 }
 
 .actions {
@@ -36,7 +46,7 @@
 
 .card {
   position: relative;
-  background: white;
+  background: var(--card);
   border-radius: 16px;
   padding: 16px;
   aspect-ratio: 1 / 1;
@@ -64,7 +74,7 @@
   z-index: 3;
   padding: 4px 8px;
   border-radius: 999px;
-  background: #111827;
+  background: var(--primary);
   color: white;
   font-size: 11px;
   font-weight: 800;
@@ -89,7 +99,7 @@
 .card p {
   margin: 4px 0;
   font-weight: 600;
-  color: #374151;
+  color: var(--muted);
 }
 
 /* Badge */
@@ -102,6 +112,7 @@
   background: #f1f5f9;
   font-weight: 800;
   font-size: 12px;
+  color: var(--text);
 }
 
 /* Spacer */
@@ -133,13 +144,13 @@
 }
 
 .btn.primary {
-  background: #111827;
+  background: var(--primary);
   color: white;
 }
 
 .btn.soft {
-  background: #e5e7eb;
-  color: #111827;
+  background: var(--soft);
+  color: var(--text);
 }
 
 .btn.disabled {
@@ -165,7 +176,7 @@
   color: #991b1b;
 }
 
-/* Message */
+/* Messages */
 
 .message {
   color: #dc2626;
@@ -186,12 +197,13 @@
 }
 
 .modal {
-  background: white;
+  background: var(--card);
   width: 100%;
-  max-width: 500px;
+  max-width: 520px;
   border-radius: 16px;
   box-shadow: 0 30px 90px rgba(0, 0, 0, 0.35);
   overflow: hidden;
+  color: var(--text);
 }
 
 .modal-header {
@@ -204,24 +216,49 @@
 .modal-body {
   padding: 14px;
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .modal-body label {
   display: flex;
   flex-direction: column;
   font-weight: 700;
+  gap: 6px;
 }
 
-.modal-body input {
+.modal-body input,
+.modal-body select {
   padding: 10px;
   border-radius: 8px;
   border: 1px solid #d1d5db;
+  background: white;
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
   padding: 14px;
   border-top: 1px solid #e5e7eb;
+}
+
+/* Compact mode */
+
+:root[data-compact="true"] .card {
+  padding: 12px;
+}
+
+:root[data-compact="true"] .card-image {
+  height: 100px;
+}
+
+:root[data-compact="true"] .btn {
+  padding: 7px;
+  font-size: 12px;
+}
+
+/* Hide images */
+
+:root[data-showImages="false"] .card-image {
+  display: none;
 }
