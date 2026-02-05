@@ -34,6 +34,34 @@
   gap: 10px;
 }
 
+/* Tabs */
+
+.event-tabs {
+  display: inline-flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  background: #fff;
+  padding: 6px;
+  border-radius: 999px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(17, 24, 39, 0.08);
+}
+
+.event-tabs .tab {
+  border: none;
+  background: transparent;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 800;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.event-tabs .tab.active {
+  background: var(--primary);
+  color: white;
+}
+
 /* Grid */
 
 .grid {
@@ -182,6 +210,12 @@
   color: #dc2626;
   font-weight: 700;
   margin-bottom: 12px;
+}
+
+.empty-state {
+  margin-top: 16px;
+  color: var(--muted);
+  font-weight: 700;
 }
 
 /* Modal */

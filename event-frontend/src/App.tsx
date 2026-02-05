@@ -10,11 +10,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
-
-        {/* ✅ route admin */}
         <Route path="/admin" element={<AdminPage />} />
-
-        {/* ✅ fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

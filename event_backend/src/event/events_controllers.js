@@ -1,6 +1,22 @@
 const pool = require("../db");
 const { toDataUrl, resolveIncomingImage } = require("../lib/imageStore");
 
+function normalizeTags(input) {
+  if (!input) return [];
+  const raw = Array.isArray(input) ? input : String(input).split(",");
+  const out = [];
+  const seen = new Set();
+  for (const item of raw) {
+    const tag = String(item).trim();
+    if (!tag) continue;
+    const key = tag.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(tag);
+  }
+  return out;
+}
+
 // Helper: transforme une row DB en objet front (sans renvoyer image_data brut)
 function mapEventRow(row, is_reserved) {
   const image_data_url = toDataUrl(row.image_data, row.image_mime);
@@ -10,6 +26,7 @@ function mapEventRow(row, is_reserved) {
     ...rest,
     image_data_url,
     is_reserved: Boolean(is_reserved),
+    tags: Array.isArray(row.tags) ? row.tags : [],
   };
 }
 
@@ -33,6 +50,7 @@ exports.getEvents = async (req, res) => {
         e.image_url,
         e.image_data,
         e.image_mime,
+        e.tags,
         e.created_at,
         (ue.user_id IS NOT NULL) AS is_reserved
       FROM events e
@@ -61,6 +79,7 @@ exports.createEvent = async (req, res) => {
   try {
     const { title, date, capacity } = req.body;
     const image_url = req.body.image_url ?? null;
+    const tags = normalizeTags(req.body.tags);
 
     if (!title || !date || capacity === undefined) {
       return res.status(400).json({ error: "Champs manquants" });
@@ -87,12 +106,12 @@ exports.createEvent = async (req, res) => {
     const sql = `
       INSERT INTO events (
         title, event_date, capacity, places_left, owner_id,
-        image_url, image_data, image_mime
+        image_url, image_data, image_mime, tags
       )
-      VALUES ($1, $2, $3, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $3, $4, $5, $6, $7, $8)
       RETURNING
         id, title, event_date, capacity, places_left,
-        owner_id, image_url, image_data, image_mime, created_at
+        owner_id, image_url, image_data, image_mime, tags, created_at
     `;
 
     const { rows } = await pool.query(sql, [
@@ -103,6 +122,7 @@ exports.createEvent = async (req, res) => {
       image_url,
       imageData,
       imageMime,
+      tags,
     ]);
 
     const r = rows[0];
@@ -118,6 +138,7 @@ exports.createEvent = async (req, res) => {
       image_url: r.image_url,
       image_mime: r.image_mime,
       image_data_url: toDataUrl(r.image_data, r.image_mime),
+      tags: Array.isArray(r.tags) ? r.tags : [],
       created_at: r.created_at,
       is_reserved: false,
     });
@@ -140,6 +161,7 @@ exports.updateEvent = async (req, res) => {
 
     const { title, date, capacity } = req.body;
     const image_url = req.body.image_url ?? null;
+    const tags = normalizeTags(req.body.tags);
 
     if (!Number.isInteger(eventId)) {
       return res.status(400).json({ error: "ID invalide" });
@@ -209,10 +231,21 @@ exports.updateEvent = async (req, res) => {
         places_left = $4,
         image_url = $5,
         image_data = $6,
-        image_mime = $7
-      WHERE id = $8
+        image_mime = $7,
+        tags = $8
+      WHERE id = $9
       `,
-      [title, date, cap, newPlacesLeft, image_url, imageData, imageMime, eventId]
+      [
+        title,
+        date,
+        cap,
+        newPlacesLeft,
+        image_url,
+        imageData,
+        imageMime,
+        tags,
+        eventId,
+      ]
     );
 
     await client.query("COMMIT");
@@ -222,7 +255,7 @@ exports.updateEvent = async (req, res) => {
       SELECT
         e.id, e.title, e.event_date, e.capacity, e.places_left,
         e.owner_id, u.username AS owner_username,
-        e.image_url, e.image_data, e.image_mime, e.created_at
+        e.image_url, e.image_data, e.image_mime, e.tags, e.created_at
       FROM events e
       JOIN users u ON u.id = e.owner_id
       WHERE e.id = $1

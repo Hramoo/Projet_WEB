@@ -25,6 +25,7 @@ export default function LandingPage() {
 
   const [events, setEvents] = useState<EventItem[]>([]);
   const [message, setMessage] = useState("");
+  const [view, setView] = useState<"upcoming" | "started">("upcoming");
 
   const [userId, setUserId] = useState<number | null>(null);
   const [userRole, setUserRole] = useState<"user" | "admin" | null>(null);
@@ -47,6 +48,13 @@ export default function LandingPage() {
   });
 
   const token = useMemo(() => localStorage.getItem("token"), []);
+  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const displayEvents = useMemo(() => {
+    const isStarted = (ev: EventItem) => formatDate(ev.event_date) < todayIso;
+    return events.filter((ev) =>
+      view === "started" ? isStarted(ev) : !isStarted(ev)
+    );
+  }, [events, todayIso, view]);
 
   const requireAuth = useCallback(() => {
     const t = localStorage.getItem("token");
@@ -258,10 +266,27 @@ export default function LandingPage() {
         onAdmin={() => navigate("/admin")}
       />
 
+      <div className="event-tabs">
+        <button
+          className={view === "upcoming" ? "tab active" : "tab"}
+          onClick={() => setView("upcoming")}
+          type="button"
+        >
+          A venir
+        </button>
+        <button
+          className={view === "started" ? "tab active" : "tab"}
+          onClick={() => setView("started")}
+          type="button"
+        >
+          en cours / fini
+        </button>
+      </div>
+
       {message && <p className="message">{message}</p>}
 
       <div className="grid">
-        {events.map((ev) => {
+        {displayEvents.map((ev) => {
           const isOwner =
             userId !== null && Number(ev.owner_id) === Number(userId);
 
@@ -278,6 +303,14 @@ export default function LandingPage() {
           );
         })}
       </div>
+
+      {displayEvents.length === 0 && (
+        <p className="empty-state">
+          {view === "started"
+            ? "Aucun evenement deja commence."
+            : "Aucun evenement a venir."}
+        </p>
+      )}
 
       {isAddOpen && (
         <AddEventModal
