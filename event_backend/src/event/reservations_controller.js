@@ -13,6 +13,12 @@ async function fetchEvent(eventId, is_reserved) {
       e.places_left,
       e.tags,
       e.tags_colors,
+      (
+        SELECT COALESCE(array_agg(u2.username ORDER BY u2.username), '{}')
+        FROM user_events ue2
+        JOIN users u2 ON u2.id = ue2.user_id
+        WHERE ue2.event_id = e.id
+      ) AS attendees,
       e.owner_id,
       u.username AS owner_username,
       e.image_url,

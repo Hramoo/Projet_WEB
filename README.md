@@ -18,8 +18,8 @@ Par défaut, la connexion DB est définie dans `event_backend/src/db.js` :
 host: "localhost"
 port: 5432
 user: "postgres"
-password: "rACIne"
-database: "postgres"
+password: "rACIne" a modifier en fonction
+database: "postgres" a modifier en fonction aussi
 ```
 
 Si besoin, modifiez ces valeurs selon votre environnement.
@@ -80,7 +80,7 @@ npm install
 node src/server.js
 ```
 
-Le serveur démarre par défaut sur **http://localhost:5001**  
+Le serveur démarre par défaut sur **http://localhost:5001** (car un service tourne déjà sur 5000).  
 Vous pouvez tester : `GET /api/health`
 
 ---
@@ -99,14 +99,16 @@ Le proxy Vite redirige automatiquement `/api` vers le backend.
 
 ---
 
-## Créer un admin
-Après avoir créé un utilisateur via l’UI (inscription), vous pouvez le passer admin :
+## Création automatique d’un admin (admin/admin)
+Un script rapide permet de créer **admin/admin** avec le rôle **admin**.  
+À lancer une seule fois (ou pour réinitialiser le mot de passe).
 
-```sql
-UPDATE public.users
-SET role = 'admin'
-WHERE username = 'votre_login';
+```bash
+cd event_backend
+node -e "const {Pool}=require('pg'); const bcrypt=require('bcrypt'); (async()=>{ const pool=new Pool({host:'localhost',port:5432,user:'postgres',password:'rACIne',database:'postgres'}); const hash=await bcrypt.hash('admin',10); await pool.query(\"INSERT INTO public.users(username,password,role) VALUES('admin',$1,'admin') ON CONFLICT (username) DO UPDATE SET password=EXCLUDED.password, role='admin'\", [hash]); await pool.end(); console.log('admin/admin prêt'); })().catch(e=>{console.error(e); process.exit(1);});"
 ```
+
+Si vous avez modifié `event_backend/src/db.js`, adaptez les paramètres DB dans la commande.
 
 ---
 

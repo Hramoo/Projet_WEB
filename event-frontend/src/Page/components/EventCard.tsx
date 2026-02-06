@@ -14,6 +14,7 @@ export type EventItem = {
   image_data_url: string | null;
   tags?: string[];
   tags_colors?: TagColorsMap;
+  attendees?: string[];
   is_reserved: boolean;
 };
 
@@ -39,6 +40,8 @@ export default function EventCard({
   const hasImage = Boolean(img);
   const tags = Array.isArray(ev.tags) ? ev.tags : [];
   const tagColors = ev.tags_colors ?? {};
+  const attendees = Array.isArray(ev.attendees) ? ev.attendees : [];
+  const attendeeCount = attendees.length;
 
   return (
     <div
@@ -47,6 +50,23 @@ export default function EventCard({
       }`}
     >
       {isOwner && <span className="owner-badge">Ton événement</span>}
+
+      <div className="attendees-tooltip">
+        <div className="attendees-title">
+          Inscrits{attendeeCount > 0 ? ` (${attendeeCount})` : ""}
+        </div>
+        {attendeeCount > 0 ? (
+          <div className="attendees-list">
+            {attendees.map((name) => (
+              <span key={`${ev.id}-attendee-${name}`} className="attendee-chip">
+                {name}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div className="attendees-empty">Aucun inscrit</div>
+        )}
+      </div>
 
       <div
         className={`card-image ${img ? "has-image" : "placeholder"}`}
@@ -57,29 +77,27 @@ export default function EventCard({
       <p>Créé par : {ev.owner_username}</p>
       <p>Date : {formatDate(ev.event_date)}</p>
 
-      {tags.length > 0 && (
-        <div className="tag-list">
-          {tags.map((tag) => {
-            const color = getTagColor(tag, tagColors);
-            const style = color
-              ? {
-                  backgroundColor: color,
-                  color: getReadableTextColor(color),
-                  borderColor: "transparent",
-                }
-              : undefined;
-            return (
-              <span
-                key={`${ev.id}-${tag}`}
-                className={`tag-chip ${color ? "tag-chip-colored" : ""}`}
-                style={style}
-              >
-                {tag}
-              </span>
-            );
-          })}
-        </div>
-      )}
+      <div className={`tag-list card-tags ${tags.length === 0 ? "is-empty" : ""}`}>
+        {tags.map((tag) => {
+          const color = getTagColor(tag, tagColors);
+          const style = color
+            ? {
+                backgroundColor: color,
+                color: getReadableTextColor(color),
+                borderColor: "transparent",
+              }
+            : undefined;
+          return (
+            <span
+              key={`${ev.id}-${tag}`}
+              className={`tag-chip ${color ? "tag-chip-colored" : ""}`}
+              style={style}
+            >
+              {tag}
+            </span>
+          );
+        })}
+      </div>
 
       <span className="badge">
         {ev.places_left}/{ev.capacity} places

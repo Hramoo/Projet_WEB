@@ -47,6 +47,7 @@ function mapEventRow(row, is_reserved) {
     ...rest,
     tags: Array.isArray(row.tags) ? row.tags : [],
     tags_colors: row.tags_colors && typeof row.tags_colors === "object" ? row.tags_colors : {},
+    attendees: Array.isArray(row.attendees) ? row.attendees : [],
     image_data_url,
     is_reserved: Boolean(is_reserved),
   };
@@ -69,6 +70,12 @@ exports.getEvents = async (req, res) => {
         e.places_left,
         e.tags,
         e.tags_colors,
+        (
+          SELECT COALESCE(array_agg(u2.username ORDER BY u2.username), '{}')
+          FROM user_events ue2
+          JOIN users u2 ON u2.id = ue2.user_id
+          WHERE ue2.event_id = e.id
+        ) AS attendees,
         e.owner_id,
         u.username AS owner_username,
         e.image_url,
@@ -167,6 +174,7 @@ exports.createEvent = async (req, res) => {
       tags: Array.isArray(r.tags) ? r.tags : [],
       tags_colors:
         r.tags_colors && typeof r.tags_colors === "object" ? r.tags_colors : {},
+      attendees: [],
       created_at: r.created_at,
       is_reserved: false,
     });
@@ -290,7 +298,14 @@ exports.updateEvent = async (req, res) => {
       SELECT
         e.id, e.title, e.event_date, e.capacity, e.places_left,
         e.owner_id, u.username AS owner_username,
-        e.image_url, e.image_data, e.image_mime, e.tags, e.tags_colors, e.created_at
+        e.image_url, e.image_data, e.image_mime, e.tags, e.tags_colors,
+        (
+          SELECT COALESCE(array_agg(u2.username ORDER BY u2.username), '{}')
+          FROM user_events ue2
+          JOIN users u2 ON u2.id = ue2.user_id
+          WHERE ue2.event_id = e.id
+        ) AS attendees,
+        e.created_at
       FROM events e
       JOIN users u ON u.id = e.owner_id
       WHERE e.id = $1
