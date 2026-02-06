@@ -1,10 +1,20 @@
 import React from "react";
 
+import { getReadableTextColor } from "../utils/colorUtils";
+import {
+  buildTagColors,
+  pickColor,
+  toTags,
+  type TagColorsMap,
+} from "../utils/tagUtils";
+
 type FormState = {
   title: string;
   date: string;
   capacity: string;
   imageUrl: string;
+  tags: string;
+  tagColors: TagColorsMap;
 };
 
 type Props = {
@@ -15,6 +25,25 @@ type Props = {
 };
 
 export default function AddEventModal({ form, setForm, onClose, onSubmit }: Props) {
+  const previewTags = toTags(form.tags);
+  const previewColors = buildTagColors(previewTags, form.tagColors);
+
+  const handleTagsChange = (value: string) => {
+    const tags = toTags(value);
+    setForm((p) => ({
+      ...p,
+      tags: value,
+      tagColors: buildTagColors(tags, p.tagColors),
+    }));
+  };
+
+  const handleColorChange = (tag: string, color: string) => {
+    setForm((p) => ({
+      ...p,
+      tagColors: { ...p.tagColors, [tag]: color },
+    }));
+  };
+
   return (
     <div
       className="overlay"
@@ -69,6 +98,42 @@ export default function AddEventModal({ form, setForm, onClose, onSubmit }: Prop
               onChange={(e) => setForm((p) => ({ ...p, imageUrl: e.target.value }))}
             />
           </label>
+
+          <label>
+            Tags (séparés par des virgules)
+            <input
+              placeholder="tech, meetup, devops"
+              value={form.tags}
+              onChange={(e) => handleTagsChange(e.target.value)}
+            />
+          </label>
+
+          {previewTags.length > 0 && (
+            <div className="tag-color-list">
+              {previewTags.map((tag) => {
+                const color = previewColors[tag] || pickColor(tag);
+                return (
+                  <div key={`add-${tag}`} className="tag-color-item">
+                    <span
+                      className="tag-chip tag-chip-colored"
+                      style={{
+                        backgroundColor: color,
+                        color: getReadableTextColor(color),
+                        borderColor: "transparent",
+                      }}
+                    >
+                      {tag}
+                    </span>
+                    <input
+                      type="color"
+                      value={color}
+                      onChange={(e) => handleColorChange(tag, e.target.value)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <div className="modal-footer">
             <button type="submit" className="btn primary">

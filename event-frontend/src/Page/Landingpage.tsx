@@ -1,24 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
-import Topbar from "./components/Topbar";
-import EventCard, { type EventItem } from "./components/EventCard";
-import AddEventModal from "./components/AddEventModal";
-import EditEventModal from "./components/EditEventModal";
+import EventHeader from "./components/EventHeader";
+import EventGrid from "./components/EventGrid";
+import EventModals from "./components/EventModals";
+import EmptyState from "./components/EmptyState";
+import type { EventItem } from "./components/EventCard";
+
+import { useEventFilters } from "./hooks/useEventFilters";
+import { formatDate } from "./utils/dateUtils";
+import { safeJson } from "./utils/http";
+import { normalizeTagColors, toTags, type TagColorsMap } from "./utils/tagUtils";
 
 import "./style/Landingpage.css";
-
-function formatDate(iso: string) {
-  return iso.slice(0, 10);
-}
-
-async function safeJson(res: Response) {
-  try {
-    return await res.json();
-  } catch {
-    return null;
-  }
-}
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -26,6 +20,7 @@ export default function LandingPage() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [message, setMessage] = useState("");
   const [view, setView] = useState<"upcoming" | "started">("upcoming");
+  const [tagFilter, setTagFilter] = useState("");
 
   const [userId, setUserId] = useState<number | null>(null);
   const [userRole, setUserRole] = useState<"user" | "admin" | null>(null);
@@ -36,6 +31,8 @@ export default function LandingPage() {
     date: "",
     capacity: "",
     imageUrl: "",
+    tags: "",
+    tagColors: {} as TagColorsMap,
   });
 
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -45,16 +42,16 @@ export default function LandingPage() {
     date: "",
     capacity: "",
     imageUrl: "",
+    tags: "",
+    tagColors: {} as TagColorsMap,
   });
 
   const token = useMemo(() => localStorage.getItem("token"), []);
-  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const displayEvents = useMemo(() => {
-    const isStarted = (ev: EventItem) => formatDate(ev.event_date) < todayIso;
-    return events.filter((ev) =>
-      view === "started" ? isStarted(ev) : !isStarted(ev)
-    );
-  }, [events, todayIso, view]);
+  const { displayEvents, allTags, selectedTags } = useEventFilters(
+    events,
+    view,
+    tagFilter
+  );
 
   const requireAuth = useCallback(() => {
     const t = localStorage.getItem("token");
@@ -157,9 +154,12 @@ export default function LandingPage() {
   }, [navigate]);
 
   const handleAddEvent = useCallback(
-    async (e: React.FormEvent) => {
+    async (e: FormEvent) => {
       e.preventDefault();
       setMessage("");
+
+      const normalizedTags = toTags(addForm.tags);
+      const tagsColors = normalizeTagColors(normalizedTags, addForm.tagColors);
 
       const res = await authFetch("/api/events", {
         method: "POST",
@@ -169,6 +169,8 @@ export default function LandingPage() {
           date: addForm.date,
           capacity: Number(addForm.capacity),
           image_url: addForm.imageUrl,
+          tags: addForm.tags,
+          tags_colors: tagsColors,
         }),
       });
 
@@ -182,7 +184,14 @@ export default function LandingPage() {
       }
 
       setIsAddOpen(false);
-      setAddForm({ title: "", date: "", capacity: "", imageUrl: "" });
+      setAddForm({
+        title: "",
+        date: "",
+        capacity: "",
+        imageUrl: "",
+        tags: "",
+        tagColors: {},
+      });
       loadEvents();
     },
     [addForm, authFetch, loadEvents]
@@ -196,16 +205,21 @@ export default function LandingPage() {
       date: formatDate(ev.event_date),
       capacity: String(ev.capacity),
       imageUrl: ev.image_url ?? "",
+      tags: Array.isArray(ev.tags) ? ev.tags.join(", ") : "",
+      tagColors: ev.tags_colors ?? {},
     });
     setIsEditOpen(true);
   }, []);
 
   const handleEditEvent = useCallback(
-    async (e: React.FormEvent) => {
+    async (e: FormEvent) => {
       e.preventDefault();
       setMessage("");
 
       if (!editTarget) return;
+
+      const normalizedTags = toTags(editForm.tags);
+      const tagsColors = normalizeTagColors(normalizedTags, editForm.tagColors);
 
       const res = await authFetch(`/api/events/${editTarget.id}`, {
         method: "PUT",
@@ -215,6 +229,8 @@ export default function LandingPage() {
           date: editForm.date,
           capacity: Number(editForm.capacity),
           image_url: editForm.imageUrl,
+          tags: editForm.tags,
+          tags_colors: tagsColors,
         }),
       });
 
@@ -258,80 +274,50 @@ export default function LandingPage() {
 
   return (
     <div className="page">
-      <Topbar
+      <EventHeader
+        userRole={userRole}
         onAdd={() => setIsAddOpen(true)}
         onLogout={handleLogout}
-        // ✅ IMPORTANT: ne pas afficher Admin tant qu'on n'a pas chargé le rôle
-        isAdmin={userRole === "admin"}
         onAdmin={() => navigate("/admin")}
+        view={view}
+        onViewChange={setView}
+        tagFilter={tagFilter}
+        onTagFilterChange={setTagFilter}
+        onResetTagFilter={() => setTagFilter("")}
+        allTags={allTags}
+        selectedTags={selectedTags}
       />
-
-      <div className="event-tabs">
-        <button
-          className={view === "upcoming" ? "tab active" : "tab"}
-          onClick={() => setView("upcoming")}
-          type="button"
-        >
-          A venir
-        </button>
-        <button
-          className={view === "started" ? "tab active" : "tab"}
-          onClick={() => setView("started")}
-          type="button"
-        >
-          en cours / fini
-        </button>
-      </div>
 
       {message && <p className="message">{message}</p>}
 
-      <div className="grid">
-        {displayEvents.map((ev) => {
-          const isOwner =
-            userId !== null && Number(ev.owner_id) === Number(userId);
+      <EventGrid
+        events={displayEvents}
+        userId={userId}
+        userRole={userRole}
+        onEdit={openEdit}
+        onDelete={handleDeleteEvent}
+        onReserve={(id) => toggleReservation(id, "reserve")}
+        onUnreserve={(id) => toggleReservation(id, "unreserve")}
+      />
 
-          return (
-            <EventCard
-              key={ev.id}
-              ev={ev}
-              isOwner={isOwner}
-              onEdit={() => openEdit(ev)}
-              onDelete={() => handleDeleteEvent(ev)}
-              onReserve={() => toggleReservation(ev.id, "reserve")}
-              onUnreserve={() => toggleReservation(ev.id, "unreserve")}
-            />
-          );
-        })}
-      </div>
+      {displayEvents.length === 0 && <EmptyState view={view} />}
 
-      {displayEvents.length === 0 && (
-        <p className="empty-state">
-          {view === "started"
-            ? "Aucun evenement deja commence."
-            : "Aucun evenement a venir."}
-        </p>
-      )}
-
-      {isAddOpen && (
-        <AddEventModal
-          form={addForm}
-          setForm={setAddForm}
-          onClose={() => setIsAddOpen(false)}
-          onSubmit={handleAddEvent}
-        />
-      )}
-
-      {isEditOpen && editTarget && (
-        <EditEventModal
-          form={editForm}
-          setForm={setEditForm}
-          onClose={() => {
-            setIsEditOpen(false);
-            setEditTarget(null);
-          }}
-          onSubmit={handleEditEvent}
-        />
-      )}
+      <EventModals
+        isAddOpen={isAddOpen}
+        addForm={addForm}
+        setAddForm={setAddForm}
+        onAddSubmit={handleAddEvent}
+        onCloseAdd={() => setIsAddOpen(false)}
+        isEditOpen={isEditOpen}
+        editTarget={editTarget}
+        editForm={editForm}
+        setEditForm={setEditForm}
+        onEditSubmit={handleEditEvent}
+        onCloseEdit={() => {
+          setIsEditOpen(false);
+          setEditTarget(null);
+        }}
+      />
     </div>
   );
 }

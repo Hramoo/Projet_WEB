@@ -11,6 +11,8 @@ async function fetchEvent(eventId, is_reserved) {
       e.event_date,
       e.capacity,
       e.places_left,
+      e.tags,
+      e.tags_colors,
       e.owner_id,
       u.username AS owner_username,
       e.image_url,

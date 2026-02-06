@@ -1,3 +1,7 @@
+import { formatDate } from "../utils/dateUtils";
+import { getReadableTextColor } from "../utils/colorUtils";
+import { getTagColor, type TagColorsMap } from "../utils/tagUtils";
+
 export type EventItem = {
   id: number;
   title: string;
@@ -8,16 +12,15 @@ export type EventItem = {
   owner_username: string;
   image_url: string | null;
   image_data_url: string | null;
+  tags?: string[];
+  tags_colors?: TagColorsMap;
   is_reserved: boolean;
 };
-
-function formatDate(iso: string) {
-  return iso.slice(0, 10);
-}
 
 export default function EventCard({
   ev,
   isOwner,
+  canManage,
   onEdit,
   onDelete,
   onReserve,
@@ -25,6 +28,7 @@ export default function EventCard({
 }: {
   ev: EventItem;
   isOwner: boolean;
+  canManage: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onReserve: () => void;
@@ -32,24 +36,50 @@ export default function EventCard({
 }) {
   const isFull = ev.places_left === 0;
   const img = ev.image_data_url || ev.image_url;
+  const hasImage = Boolean(img);
+  const tags = Array.isArray(ev.tags) ? ev.tags : [];
+  const tagColors = ev.tags_colors ?? {};
 
   return (
-    <div className="card">
-      {/* Badge owner */}
+    <div
+      className={`card ${isOwner ? "has-owner" : ""} ${
+        hasImage ? "has-image" : "no-image"
+      }`}
+    >
       {isOwner && <span className="owner-badge">Ton événement</span>}
 
-      {/* Image */}
-      {img && (
-        <div
-          className="card-image"
-          style={{ backgroundImage: `url(${img})` }}
-        />
-      )}
+      <div
+        className={`card-image ${img ? "has-image" : "placeholder"}`}
+        style={img ? { backgroundImage: `url(${img})` } : undefined}
+      />
 
-      {/* Infos */}
       <h2>{ev.title}</h2>
       <p>Créé par : {ev.owner_username}</p>
       <p>Date : {formatDate(ev.event_date)}</p>
+
+      {tags.length > 0 && (
+        <div className="tag-list">
+          {tags.map((tag) => {
+            const color = getTagColor(tag, tagColors);
+            const style = color
+              ? {
+                  backgroundColor: color,
+                  color: getReadableTextColor(color),
+                  borderColor: "transparent",
+                }
+              : undefined;
+            return (
+              <span
+                key={`${ev.id}-${tag}`}
+                className={`tag-chip ${color ? "tag-chip-colored" : ""}`}
+                style={style}
+              >
+                {tag}
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       <span className="badge">
         {ev.places_left}/{ev.capacity} places
@@ -57,43 +87,39 @@ export default function EventCard({
 
       <div className="spacer" />
 
-      {/* Actions */}
       <div className="card-actions">
-        {/* OWNER actions */}
+        {canManage && (
+          <button
+            className="btn icon"
+            onClick={onEdit}
+            title="Modifier l'événement"
+          >
+            ✏️
+          </button>
+        )}
         {isOwner && (
-          <>
-            <button
-              className="btn icon"
-              onClick={onEdit}
-              title="Modifier l’événement"
-            >
-              ✏️
-            </button>
-            <button
-              className="btn icon danger"
-              onClick={onDelete}
-              title="Supprimer l’événement"
-            >
-              🗑️
-            </button>
-          </>
+          <button
+            className="btn icon danger"
+            onClick={onDelete}
+            title="Supprimer l'événement"
+          >
+            🗑️
+          </button>
         )}
 
-        {/* NON-OWNER actions */}
-        {!false &&
-          (ev.is_reserved ? (
-            <button className="btn soft" onClick={onUnreserve}>
-              Se désengager
-            </button>
-          ) : (
-            <button
-              className={`btn ${isFull ? "disabled" : "soft"}`}
-              disabled={isFull}
-              onClick={onReserve}
-            >
-              {isFull ? "Complet" : "S’inscrire"}
-            </button>
-          ))}
+        {ev.is_reserved ? (
+          <button className="btn soft" onClick={onUnreserve}>
+            Se désengager
+          </button>
+        ) : (
+          <button
+            className={`btn ${isFull ? "disabled" : "soft"}`}
+            disabled={isFull}
+            onClick={onReserve}
+          >
+            {isFull ? "Complet" : "S'inscrire"}
+          </button>
+        )}
       </div>
     </div>
   );
