@@ -2,14 +2,6 @@
 
 Ce projet contient un **frontend React (Vite)** et un **backend Node/Express** avec une base **PostgreSQL**.
 
----
-
-## Prérequis
-- **Node.js** (recommandé: 18+)
-- **npm**
-- **PostgreSQL** en local
-
----
 
 ## Configuration de la base de données
 Par défaut, la connexion DB est définie dans `event_backend/src/db.js` :
@@ -25,9 +17,10 @@ database: "postgres" a modifier en fonction aussi
 Si besoin, modifiez ces valeurs selon votre environnement.
 
 ### Schéma SQL (à exécuter une seule fois)
-Vous pouvez lancer ces requêtes dans `psql` ou pgAdmin :
+Vous pouvez lancer ces requêtes dans `psql` ou pgAdmin  deja testeer avec un autre pc avec PG admin en copiant les requetes dans le Query editor :
 
-```sql
+
+```postgre creation des tables avec colonne
 CREATE TABLE IF NOT EXISTS public.users (
   id SERIAL PRIMARY KEY,
   username TEXT UNIQUE NOT NULL,
@@ -94,7 +87,7 @@ npm install
 npm run dev
 ```
 
-Le frontend sera disponible sur **http://localhost:5173**  
+Le frontend sera disponible sur **http://localhost:5173**  ou voir le 
 Le proxy Vite redirige automatiquement `/api` vers le backend.
 
 ---
@@ -112,7 +105,7 @@ Si vous avez modifié `event_backend/src/db.js`, adaptez les paramètres DB dans
 
 ---
 
-## Scripts utiles
+## commandes utiles
 Frontend (`event-frontend`):
 - `npm run dev` : démarrage local
 - `npm run build` : build de prod
@@ -120,7 +113,3 @@ Frontend (`event-frontend`):
 
 Backend (`event_backend`):
 - `node src/server.js` : démarrage serveur
-
----
-
-Si besoin, je peux aussi ajouter un script `npm run start` côté backend pour simplifier.

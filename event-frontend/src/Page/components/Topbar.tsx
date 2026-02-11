@@ -14,6 +14,17 @@ export default function Topbar({
       <h1 className="brand">EventSquare</h1>
 
       <div className="actions">
+        <a
+          className="btn soft icon"
+          href="https://omarmontino.netlify.app/"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Ouvrir le site"
+          title="Ouvrir le site"
+        >
+          📚
+        </a>
+
         {isAdmin && (
           <button className="btn soft" onClick={onAdmin}>
             Admin
